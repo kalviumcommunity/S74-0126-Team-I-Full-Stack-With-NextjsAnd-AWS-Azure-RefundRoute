@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { sendSuccess, sendError } from "@/lib/responseHandler";
 import { createUserSchema } from "@/lib/schemas/userSchema";
 import { handleValidationError } from "@/lib/validationHelpers";
+import { handleError } from "@/lib/errorHandler";
 import { ZodError } from "zod";
 
 export async function POST(req: Request) {
@@ -56,6 +57,7 @@ export async function POST(req: Request) {
 
     return sendSuccess("Signup successful", newUser, 201);
   } catch (error) {
+    return handleError(error, "POST /api/auth/signup");
     console.error("Signup error:", error);
     return sendError("Signup failed", "E500", 500);
   }
