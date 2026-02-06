@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { sendSuccess, sendError } from '@/lib/responseHandler';
+import { ERROR_CODES } from '@/lib/errorCodes';
 
 const prisma = new PrismaClient();
 
@@ -15,9 +16,10 @@ export async function GET(
     const userId = Number(params.id);
 
     if (isNaN(userId)) {
-      return NextResponse.json(
-        { error: 'Invalid user ID' },
-        { status: 400 }
+      return sendError(
+        'Invalid user ID',
+        ERROR_CODES.INVALID_INPUT,
+        400
       );
     }
 
@@ -40,18 +42,21 @@ export async function GET(
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
+      return sendError(
+        'User not found',
+        ERROR_CODES.USER_NOT_FOUND,
+        404
       );
     }
 
-    return NextResponse.json({ data: user });
+    return sendSuccess(user, 'User fetched successfully');
   } catch (error) {
     console.error('Error fetching user:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch user' },
-      { status: 500 }
+    return sendError(
+      'Failed to fetch user',
+      ERROR_CODES.FETCH_FAILED,
+      500,
+      error
     );
   }
 }
@@ -70,16 +75,18 @@ export async function PUT(
     const { name, email } = body;
 
     if (isNaN(userId)) {
-      return NextResponse.json(
-        { error: 'Invalid user ID' },
-        { status: 400 }
+      return sendError(
+        'Invalid user ID',
+        ERROR_CODES.INVALID_INPUT,
+        400
       );
     }
 
     if (!name && !email) {
-      return NextResponse.json(
-        { error: 'At least one field (name or email) is required' },
-        { status: 400 }
+      return sendError(
+        'At least one field (name or email) is required',
+        ERROR_CODES.MISSING_FIELDS,
+        400
       );
     }
 
@@ -97,30 +104,31 @@ export async function PUT(
       },
     });
 
-    return NextResponse.json({
-      message: 'User updated successfully',
-      data: user,
-    });
+    return sendSuccess(user, 'User updated successfully');
   } catch (error: any) {
     console.error('Error updating user:', error);
 
     if (error.code === 'P2025') {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
+      return sendError(
+        'User not found',
+        ERROR_CODES.USER_NOT_FOUND,
+        404
       );
     }
 
     if (error.code === 'P2002') {
-      return NextResponse.json(
-        { error: 'Email already exists' },
-        { status: 409 }
+      return sendError(
+        'Email already exists',
+        ERROR_CODES.EMAIL_EXISTS,
+        409
       );
     }
 
-    return NextResponse.json(
-      { error: 'Failed to update user' },
-      { status: 500 }
+    return sendError(
+      'Failed to update user',
+      ERROR_CODES.UPDATE_FAILED,
+      500,
+      error
     );
   }
 }
@@ -137,9 +145,10 @@ export async function DELETE(
     const userId = Number(params.id);
 
     if (isNaN(userId)) {
-      return NextResponse.json(
-        { error: 'Invalid user ID' },
-        { status: 400 }
+      return sendError(
+        'Invalid user ID',
+        ERROR_CODES.INVALID_INPUT,
+        400
       );
     }
 
@@ -147,18 +156,26 @@ export async function DELETE(
       where: { id: userId },
     });
 
-    return NextResponse.json({
-      message: 'User deleted successfully',
-    });
+    return sendSuccess(null, 'User deleted successfully');
   } catch (error: any) {
     console.error('Error deleting user:', error);
 
     if (error.code === 'P2025') {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
+      return sendError(
+        'User not found',
+        ERROR_CODES.USER_NOT_FOUND,
+        404
       );
     }
+
+    return sendError(
+      'Failed to delete user',
+      ERROR_CODES.DELETE_FAILED,
+      500,
+      error
+    );
+  }
+}
 
     return NextResponse.json(
       { error: 'Failed to delete user' },

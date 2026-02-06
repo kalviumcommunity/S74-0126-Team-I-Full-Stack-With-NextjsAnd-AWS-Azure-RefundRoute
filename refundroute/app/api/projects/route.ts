@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { sendSuccess, sendError, sendPaginatedSuccess } from '@/lib/responseHandler';
+import { ERROR_CODES } from '@/lib/errorCodes';
 
 const prisma = new PrismaClient();
 
@@ -42,20 +43,23 @@ export async function GET(request: Request) {
       prisma.project.count({ where }),
     ]);
 
-    return NextResponse.json({
-      data: projects,
-      pagination: {
+    return sendPaginatedSuccess(
+      projects,
+      {
         page,
         limit,
         total,
         totalPages: Math.ceil(total / limit),
       },
-    });
+      'Projects fetched successfully'
+    );
   } catch (error) {
     console.error('Error fetching projects:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch projects' },
-      { status: 500 }
+    return sendError(
+      'Failed to fetch projects',
+      ERROR_CODES.FETCH_FAILED,
+      500,
+      error
     );
   }
 }
@@ -70,9 +74,10 @@ export async function POST(request: Request) {
     const { name, userId, status = 'active' } = body;
 
     if (!name || !userId) {
-      return NextResponse.json(
-        { error: 'Name and userId are required' },
-        { status: 400 }
+      return sendError(
+        'Name and userId are required',
+        ERROR_CODES.MISSING_FIELDS,
+        400
       );
     }
 
@@ -82,9 +87,10 @@ export async function POST(request: Request) {
     });
 
     if (!userExists) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
+      return sendError(
+        'User not found',
+        ERROR_CODES.USER_NOT_FOUND,
+        404
       );
     }
 
@@ -109,15 +115,18 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json(
-      { message: 'Project created successfully', data: project },
-      { status: 201 }
+    return sendSuccess(
+      project,
+      'Project created successfully',
+      201
     );
   } catch (error) {
     console.error('Error creating project:', error);
-    return NextResponse.json(
-      { error: 'Failed to create project' },
-      { status: 500 }
+    return sendError(
+      'Failed to create project',
+      ERROR_CODES.CREATE_FAILED,
+      500,
+      error
     );
   }
 }
