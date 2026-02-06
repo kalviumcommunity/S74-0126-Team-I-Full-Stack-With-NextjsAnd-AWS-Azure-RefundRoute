@@ -1,6 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 import { sendSuccess, sendError } from '@/lib/responseHandler';
 import { ERROR_CODES } from '@/lib/errorCodes';
+import { updateUserSchema } from '@/lib/schemas/userSchema';
+import { ZodError } from 'zod';
+import { handleValidationError } from '@/lib/validationHelpers';
 
 const prisma = new PrismaClient();
 
@@ -72,7 +75,6 @@ export async function PUT(
   try {
     const userId = Number(params.id);
     const body = await request.json();
-    const { name, email } = body;
 
     if (isNaN(userId)) {
       return sendError(
@@ -82,13 +84,9 @@ export async function PUT(
       );
     }
 
-    if (!name && !email) {
-      return sendError(
-        'At least one field (name or email) is required',
-        ERROR_CODES.MISSING_FIELDS,
-        400
-      );
-    }
+    // Validate input with Zod
+    const validatedData = updateUserSchema.parse(body);
+    const { name, email } = validatedData;
 
     const user = await prisma.user.update({
       where: { id: userId },
@@ -107,6 +105,11 @@ export async function PUT(
     return sendSuccess(user, 'User updated successfully');
   } catch (error: any) {
     console.error('Error updating user:', error);
+
+    // Handle Zod validation errors
+    if (error instanceof ZodError) {
+      return handleValidationError(error);
+    }
 
     if (error.code === 'P2025') {
       return sendError(

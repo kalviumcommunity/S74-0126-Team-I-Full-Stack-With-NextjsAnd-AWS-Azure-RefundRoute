@@ -625,6 +625,260 @@ return sendSuccess(data, 'Operation successful');
 return sendError('Error message', ERROR_CODES.NOT_FOUND, 404);
 ```
 
+## ✅ Input Validation with Zod
+
+This project uses Zod for type-safe schema validation on all POST and PUT endpoints, ensuring data integrity before it reaches the database.
+
+### Why Validation Matters
+
+Without validation, APIs are vulnerable to:
+- Malformed or missing data
+- Type mismatches (string instead of number)
+- Invalid email formats or empty fields
+- SQL injection and other security risks
+
+Zod validates inputs **before** any database operation, preventing bad data from corrupting your system.
+
+### Validation Schemas
+
+All schemas are defined in `lib/schemas/` and can be reused between client and server.
+
+#### User Schema
+
+```typescript
+// lib/schemas/userSchema.ts
+import { z } from 'zod';
+
+export const createUserSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters long'),
+  email: z.string().email('Invalid email address').toLowerCase(),
+});
+
+export const updateUserSchema = z.object({
+  name: z.string().min(2).optional(),
+  email: z.string().email().toLowerCase().optional(),
+}).refine(data => data.name || data.email, {
+  message: 'At least one field must be provided',
+});
+```
+
+#### Project Schema
+
+```typescript
+// lib/schemas/projectSchema.ts
+export const createProjectSchema = z.object({
+  name: z.string().min(3, 'Project name must be at least 3 characters'),
+  userId: z.number().int().positive('User ID must be positive'),
+  status: z.enum(['active', 'inactive', 'archived']).default('active'),
+});
+```
+
+### Usage in API Routes
+
+```typescript
+import { createUserSchema } from '@/lib/schemas/userSchema';
+import { ZodError } from 'zod';
+import { handleValidationError } from '@/lib/validationHelpers';
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    
+    // Validate with Zod
+    const validatedData = createUserSchema.parse(body);
+    
+    // Now safe to use validated data
+    const user = await prisma.user.create({ data: validatedData });
+    
+    return sendSuccess(user, 'User created successfully', 201);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return handleValidationError(error);
+    }
+    // Handle other errors...
+  }
+}
+```
+
+### Validation Error Response
+
+When validation fails, Zod returns detailed, field-specific error messages:
+
+**Invalid Request:**
+```bash
+curl -X POST http://localhost:3000/api/users \
+  -H "Content-Type: application/json" \
+  -d '{"name":"A","email":"bademail"}'
+```
+
+**Response (400):**
+```json
+{
+  "success": false,
+  "message": "Validation failed",
+  "error": {
+    "code": "E001",
+    "details": [
+      {
+        "field": "name",
+        "message": "Name must be at least 2 characters long"
+      },
+      {
+        "field": "email",
+        "message": "Invalid email address"
+      }
+    ]
+  },
+  "timestamp": "2026-02-06T10:30:00.000Z"
+}
+```
+
+### Testing Examples
+
+#### ✅ Valid User Creation
+```bash
+curl -X POST http://localhost:3000/api/users \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Alice Johnson","email":"alice@example.com"}'
+```
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "message": "User created successfully",
+  "data": {
+    "id": 1,
+    "name": "Alice Johnson",
+    "email": "alice@example.com"
+  },
+  "timestamp": "2026-02-06T..."
+}
+```
+
+#### ❌ Invalid User Creation (Missing Fields)
+```bash
+curl -X POST http://localhost:3000/api/users \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+**Response (400):**
+```json
+{
+  "success": false,
+  "message": "Validation failed",
+  "error": {
+    "code": "E001",
+    "details": [
+      { "field": "name", "message": "Required" },
+      { "field": "email", "message": "Required" }
+    ]
+  }
+}
+```
+
+#### ❌ Invalid Project Status
+```bash
+curl -X POST http://localhost:3000/api/projects \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Test","userId":1,"status":"invalid"}'
+```
+
+**Response (400):**
+```json
+{
+  "success": false,
+  "message": "Validation failed",
+  "error": {
+    "code": "E001",
+    "details": [{
+      "field": "status",
+      "message": "Status must be active, inactive, or archived"
+    }]
+  }
+}
+```
+
+### Schema Reuse (Client & Server)
+
+Zod schemas can be shared between frontend and backend:
+
+**Server (API Route):**
+```typescript
+import { createUserSchema } from '@/lib/schemas/userSchema';
+
+const validatedData = createUserSchema.parse(body);
+```
+
+**Client (Form Validation):**
+```typescript
+import { createUserSchema } from '@/lib/schemas/userSchema';
+
+// Validate before submitting
+try {
+  createUserSchema.parse(formData);
+  // Submit to API
+} catch (error) {
+  // Show validation errors in UI
+}
+```
+
+**TypeScript Type Inference:**
+```typescript
+import { z } from 'zod';
+import { createUserSchema } from '@/lib/schemas/userSchema';
+
+// Automatically inferred type
+type CreateUserInput = z.infer<typeof createUserSchema>;
+
+// Same type on client and server!
+```
+
+### Benefits
+
+**Data Integrity:**
+- Guaranteed valid data before database operations
+- Type-safe validation at runtime
+- Prevents malformed data from corrupting records
+
+**Developer Experience:**
+- Clear, descriptive error messages
+- Type inference for TypeScript
+- Reusable schemas across stack
+- Self-documenting API requirements
+
+**Team Collaboration:**
+- Frontend knows exact requirements
+- Backend guarantees data structure
+- Reduced back-and-forth debugging
+- Single source of truth for validation rules
+
+**Security:**
+- Prevents injection attacks
+- Validates data types and formats
+- Sanitizes inputs (e.g., toLowerCase() for emails)
+- Rejects unexpected fields
+
+### How It Protects Your Backend
+
+When a frontend developer sends malformed data:
+
+1. **Zod catches it immediately** - Before any database query
+2. **Returns structured errors** - Clear field-level feedback
+3. **Prevents corruption** - Bad data never reaches the database
+4. **Improves collaboration** - Both teams understand requirements
+
+**Without Zod:**
+```
+Frontend sends bad data → Database error → Stack trace → Confusion
+```
+
+**With Zod:**
+```
+Frontend sends bad data → Zod validation → Clear error → Quick fix
+```
+
 ## Learn More
 
 - [Next.js Documentation](https://nextjs.org/docs)

@@ -1,6 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 import { sendSuccess, sendError, sendPaginatedSuccess } from '@/lib/responseHandler';
 import { ERROR_CODES } from '@/lib/errorCodes';
+import { createUserSchema } from '@/lib/schemas/userSchema';
+import { ZodError } from 'zod';
+import { handleValidationError } from '@/lib/validationHelpers';
 
 const prisma = new PrismaClient();
 
@@ -60,15 +63,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, email } = body;
-
-    if (!name || !email) {
-      return sendError(
-        'Name and email are required',
-        ERROR_CODES.MISSING_FIELDS,
-        400
-      );
-    }
+    
+    // Validate input with Zod
+    const validatedData = createUserSchema.parse(body);
+    const { name, email } = validatedData;
 
     const user = await prisma.user.create({
       data: {
@@ -90,6 +88,11 @@ export async function POST(request: Request) {
     );
   } catch (error: any) {
     console.error('Error creating user:', error);
+    
+    // Handle Zod validation errors
+    if (error instanceof ZodError) {
+      return handleValidationError(error);
+    }
     
     // Handle unique constraint violation
     if (error.code === 'P2002') {
