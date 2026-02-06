@@ -469,6 +469,162 @@ All errors return consistent JSON format:
 **Integration:** External clients can follow standard REST conventions  
 **Self-Documenting:** Clear naming reduces need for extensive documentation
 
+## 🎯 Global API Response Handler
+
+This project uses a unified response format across all API endpoints for consistency and better developer experience.
+
+### Response Format
+
+All API responses follow a standardized structure defined in `lib/responseHandler.ts`.
+
+**Success Response:**
+```json
+{
+  "success": true,
+  "message": "Users fetched successfully",
+  "data": [
+    {
+      "id": 1,
+      "name": "Alice Johnson",
+      "email": "alice@example.com"
+    }
+  ],
+  "timestamp": "2026-02-06T10:30:00.000Z"
+}
+```
+
+**Error Response:**
+```json
+{
+  "success": false,
+  "message": "User not found",
+  "error": {
+    "code": "E404_USER",
+    "details": null
+  },
+  "timestamp": "2026-02-06T10:30:00.000Z"
+}
+```
+
+**Paginated Response:**
+```json
+{
+  "success": true,
+  "message": "Users fetched successfully",
+  "data": [...],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 25,
+    "totalPages": 3
+  },
+  "timestamp": "2026-02-06T10:30:00.000Z"
+}
+```
+
+### Response Handler Utilities
+
+#### `sendSuccess(data, message, status)`
+Returns a standardized success response.
+
+```typescript
+import { sendSuccess } from '@/lib/responseHandler';
+
+export async function GET() {
+  const users = await prisma.user.findMany();
+  return sendSuccess(users, 'Users fetched successfully');
+}
+```
+
+#### `sendError(message, code, status, details)`
+Returns a standardized error response.
+
+```typescript
+import { sendError } from '@/lib/responseHandler';
+import { ERROR_CODES } from '@/lib/errorCodes';
+
+if (!user) {
+  return sendError(
+    'User not found',
+    ERROR_CODES.USER_NOT_FOUND,
+    404
+  );
+}
+```
+
+#### `sendPaginatedSuccess(data, pagination, message)`
+Returns paginated data with metadata.
+
+```typescript
+return sendPaginatedSuccess(
+  users,
+  { page: 1, limit: 10, total: 25, totalPages: 3 },
+  'Users fetched successfully'
+);
+```
+
+### Error Codes
+
+Standardized error codes from `lib/errorCodes.ts`:
+
+| Code | Description | HTTP Status |
+|------|-------------|-------------|
+| E001 | Validation error | 400 |
+| E002 | Missing required fields | 400 |
+| E003 | Invalid input | 400 |
+| E404_USER | User not found | 404 |
+| E404_PROJECT | Project not found | 404 |
+| E409_EMAIL | Email already exists | 409 |
+| E500_DB | Database error | 500 |
+| E501_CREATE | Create operation failed | 500 |
+| E502_UPDATE | Update operation failed | 500 |
+| E503_DELETE | Delete operation failed | 500 |
+| E504_FETCH | Fetch operation failed | 500 |
+
+### Benefits of Unified Responses
+
+**Developer Experience:**
+- Predictable response structure across all endpoints
+- Easy to handle in frontend code
+- Type-safe with TypeScript interfaces
+- Self-documenting API behavior
+
+**Debugging & Monitoring:**
+- Consistent error codes for tracking issues
+- Timestamps for logging and debugging
+- Error details for troubleshooting
+- Easy integration with monitoring tools (Sentry, DataDog)
+
+**Team Collaboration:**
+- New developers understand responses immediately
+- Frontend team knows exactly what to expect
+- Reduces communication overhead
+- Standardized across entire codebase
+
+**Observability:**
+- Error codes can be tracked in dashboards
+- Timestamps enable time-series analysis
+- Structured format for log aggregation
+- Easy to integrate with APM tools
+
+### Example Usage in Routes
+
+**Before (Inconsistent):**
+```typescript
+// /api/users
+return NextResponse.json({ data: users, ok: true });
+
+// /api/projects
+return NextResponse.json({ success: true, payload: [] });
+```
+
+**After (Consistent):**
+```typescript
+// All endpoints
+return sendSuccess(data, 'Operation successful');
+return sendError('Error message', ERROR_CODES.NOT_FOUND, 404);
+```
+
 ## Learn More
 
 - [Next.js Documentation](https://nextjs.org/docs)

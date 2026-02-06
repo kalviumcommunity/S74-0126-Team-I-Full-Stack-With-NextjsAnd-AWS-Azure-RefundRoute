@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { sendSuccess, sendError } from '@/lib/responseHandler';
+import { ERROR_CODES } from '@/lib/errorCodes';
 
 const prisma = new PrismaClient();
 
@@ -39,18 +40,21 @@ export async function GET(
     });
 
     if (!project) {
-      return NextResponse.json(
-        { error: 'Project not found' },
-        { status: 404 }
+      return sendError(
+        'Project not found',
+        ERROR_CODES.PROJECT_NOT_FOUND,
+        404
       );
     }
 
-    return NextResponse.json({ data: project });
+    return sendSuccess(project, 'Project fetched successfully');
   } catch (error) {
     console.error('Error fetching project:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch project' },
-      { status: 500 }
+    return sendError(
+      'Failed to fetch project',
+      ERROR_CODES.FETCH_FAILED,
+      500,
+      error
     );
   }
 }
@@ -69,16 +73,18 @@ export async function PUT(
     const { name, status } = body;
 
     if (isNaN(projectId)) {
-      return NextResponse.json(
-        { error: 'Invalid project ID' },
-        { status: 400 }
+      return sendError(
+        'Invalid project ID',
+        ERROR_CODES.INVALID_INPUT,
+        400
       );
     }
 
     if (!name && !status) {
-      return NextResponse.json(
-        { error: 'At least one field (name or status) is required' },
-        { status: 400 }
+      return sendError(
+        'At least one field (name or status) is required',
+        ERROR_CODES.MISSING_FIELDS,
+        400
       );
     }
 
@@ -103,23 +109,23 @@ export async function PUT(
       },
     });
 
-    return NextResponse.json({
-      message: 'Project updated successfully',
-      data: project,
-    });
+    return sendSuccess(project, 'Project updated successfully');
   } catch (error: any) {
     console.error('Error updating project:', error);
 
     if (error.code === 'P2025') {
-      return NextResponse.json(
-        { error: 'Project not found' },
-        { status: 404 }
+      return sendError(
+        'Project not found',
+        ERROR_CODES.PROJECT_NOT_FOUND,
+        404
       );
     }
 
-    return NextResponse.json(
-      { error: 'Failed to update project' },
-      { status: 500 }
+    return sendError(
+      'Failed to update project',
+      ERROR_CODES.UPDATE_FAILED,
+      500,
+      error
     );
   }
 }
@@ -136,9 +142,10 @@ export async function DELETE(
     const projectId = Number(params.id);
 
     if (isNaN(projectId)) {
-      return NextResponse.json(
-        { error: 'Invalid project ID' },
-        { status: 400 }
+      return sendError(
+        'Invalid project ID',
+        ERROR_CODES.INVALID_INPUT,
+        400
       );
     }
 
@@ -146,22 +153,23 @@ export async function DELETE(
       where: { id: projectId },
     });
 
-    return NextResponse.json({
-      message: 'Project deleted successfully',
-    });
+    return sendSuccess(null, 'Project deleted successfully');
   } catch (error: any) {
     console.error('Error deleting project:', error);
 
     if (error.code === 'P2025') {
-      return NextResponse.json(
-        { error: 'Project not found' },
-        { status: 404 }
+      return sendError(
+        'Project not found',
+        ERROR_CODES.PROJECT_NOT_FOUND,
+        404
       );
     }
 
-    return NextResponse.json(
-      { error: 'Failed to delete project' },
-      { status: 500 }
+    return sendError(
+      'Failed to delete project',
+      ERROR_CODES.DELETE_FAILED,
+      500,
+      error
     );
   }
 }

@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { sendSuccess, sendError, sendPaginatedSuccess } from '@/lib/responseHandler';
+import { ERROR_CODES } from '@/lib/errorCodes';
 
 const prisma = new PrismaClient();
 
@@ -31,20 +32,23 @@ export async function GET(request: Request) {
       prisma.user.count(),
     ]);
 
-    return NextResponse.json({
-      data: users,
-      pagination: {
+    return sendPaginatedSuccess(
+      users,
+      {
         page,
         limit,
         total,
         totalPages: Math.ceil(total / limit),
       },
-    });
+      'Users fetched successfully'
+    );
   } catch (error) {
     console.error('Error fetching users:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch users' },
-      { status: 500 }
+    return sendError(
+      'Failed to fetch users',
+      ERROR_CODES.FETCH_FAILED,
+      500,
+      error
     );
   }
 }
@@ -59,9 +63,10 @@ export async function POST(request: Request) {
     const { name, email } = body;
 
     if (!name || !email) {
-      return NextResponse.json(
-        { error: 'Name and email are required' },
-        { status: 400 }
+      return sendError(
+        'Name and email are required',
+        ERROR_CODES.MISSING_FIELDS,
+        400
       );
     }
 
@@ -78,24 +83,28 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json(
-      { message: 'User created successfully', data: user },
-      { status: 201 }
+    return sendSuccess(
+      user,
+      'User created successfully',
+      201
     );
   } catch (error: any) {
     console.error('Error creating user:', error);
     
     // Handle unique constraint violation
     if (error.code === 'P2002') {
-      return NextResponse.json(
-        { error: 'Email already exists' },
-        { status: 409 }
+      return sendError(
+        'Email already exists',
+        ERROR_CODES.EMAIL_EXISTS,
+        409
       );
     }
 
-    return NextResponse.json(
-      { error: 'Failed to create user' },
-      { status: 500 }
+    return sendError(
+      'Failed to create user',
+      ERROR_CODES.CREATE_FAILED,
+      500,
+      error
     );
   }
 }
