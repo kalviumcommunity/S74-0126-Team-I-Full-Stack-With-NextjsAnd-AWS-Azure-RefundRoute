@@ -217,3 +217,26 @@ Mobile app using React Native
 ## 🧾 Conclusion
 
 RefundRoute introduces trust, clarity, and accountability into intercity bus ticket cancellations and refunds by combining transparent policies, real-time tracking, and immutable audit logs—creating a passenger-first public transport ecosystem.
+
+---
+
+## 🎨 Loading States & Error Boundaries
+
+Implemented robust loading skeletons and error boundaries for graceful async state handling.
+
+### Features
+- **Loading Skeletons** - Animated placeholders during data fetching
+- **Error Boundaries** - Graceful error handling with retry functionality
+- **Demo Route** - `/refunds` with simulated async data
+
+### Files
+- `app/loading.tsx`, `app/error.tsx` - Root level states
+- `app/refunds/page.tsx`, `loading.tsx`, `error.tsx` - Example implementation
+
+### Testing
+1. Run `npm run dev` in the `refundroute` folder
+2. Visit `/refunds` to see loading skeleton (2s delay)
+3. Uncomment line 7 in `app/refunds/page.tsx` to test error state
+4. Use DevTools Network throttling for realistic testing
+
+---

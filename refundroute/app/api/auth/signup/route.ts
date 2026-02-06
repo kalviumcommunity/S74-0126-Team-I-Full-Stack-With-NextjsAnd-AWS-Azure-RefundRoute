@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import bcrypt from "bcrypt";
 import { prisma } from "@/lib/prisma";
 import { sendSuccess, sendError } from "@/lib/responseHandler";
@@ -57,5 +58,7 @@ export async function POST(req: Request) {
     return sendSuccess("Signup successful", newUser, 201);
   } catch (error) {
     return handleError(error, "POST /api/auth/signup");
+    console.error("Signup error:", error);
+    return sendError("Signup failed", "E500", 500);
   }
 }
