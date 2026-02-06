@@ -260,6 +260,215 @@ Query time: ~8ms (index scan)
 
 **Improvement: 94% faster** ⚡
 
+## 🚀 API Route Structure and Naming
+
+This project follows RESTful API conventions with clear, predictable endpoints under `/api/`.
+
+### API Route Hierarchy
+
+```
+app/api/
+├── users/
+│   ├── route.ts           # GET, POST /api/users
+│   └── [id]/
+│       └── route.ts       # GET, PUT, DELETE /api/users/:id
+└── projects/
+    ├── route.ts           # GET, POST /api/projects
+    └── [id]/
+        └── route.ts       # GET, PUT, DELETE /api/projects/:id
+```
+
+### Endpoints Overview
+
+#### Users API
+
+| Method | Endpoint | Description | Status Codes |
+|--------|----------|-------------|--------------|
+| GET | `/api/users` | Get all users (paginated) | 200, 500 |
+| POST | `/api/users` | Create new user | 201, 400, 409, 500 |
+| GET | `/api/users/:id` | Get user by ID | 200, 400, 404, 500 |
+| PUT | `/api/users/:id` | Update user | 200, 400, 404, 409, 500 |
+| DELETE | `/api/users/:id` | Delete user | 200, 400, 404, 500 |
+
+#### Projects API
+
+| Method | Endpoint | Description | Status Codes |
+|--------|----------|-------------|--------------|
+| GET | `/api/projects` | Get all projects (paginated) | 200, 500 |
+| POST | `/api/projects` | Create new project | 201, 400, 404, 500 |
+| GET | `/api/projects/:id` | Get project by ID | 200, 400, 404, 500 |
+| PUT | `/api/projects/:id` | Update project | 200, 400, 404, 500 |
+| DELETE | `/api/projects/:id` | Delete project | 200, 400, 404, 500 |
+
+### Example Requests & Responses
+
+#### Get All Users (Paginated)
+```bash
+curl "http://localhost:3000/api/users?page=1&limit=10"
+```
+
+**Response (200):**
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "name": "Alice Johnson",
+      "email": "alice@example.com",
+      "createdAt": "2026-02-06T10:30:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 25,
+    "totalPages": 3
+  }
+}
+```
+
+#### Create New User
+```bash
+curl -X POST http://localhost:3000/api/users \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Charlie Davis","email":"charlie@example.com"}'
+```
+
+**Response (201):**
+```json
+{
+  "message": "User created successfully",
+  "data": {
+    "id": 4,
+    "name": "Charlie Davis",
+    "email": "charlie@example.com",
+    "createdAt": "2026-02-06T11:00:00Z"
+  }
+}
+```
+
+#### Get User by ID
+```bash
+curl http://localhost:3000/api/users/1
+```
+
+**Response (200):**
+```json
+{
+  "data": {
+    "id": 1,
+    "name": "Alice Johnson",
+    "email": "alice@example.com",
+    "createdAt": "2026-02-06T10:30:00Z",
+    "projects": [
+      {
+        "id": 1,
+        "name": "RefundRoute Dashboard",
+        "status": "active",
+        "createdAt": "2026-02-06T10:31:00Z"
+      }
+    ]
+  }
+}
+```
+
+#### Update User
+```bash
+curl -X PUT http://localhost:3000/api/users/1 \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Alice Smith"}'
+```
+
+**Response (200):**
+```json
+{
+  "message": "User updated successfully",
+  "data": {
+    "id": 1,
+    "name": "Alice Smith",
+    "email": "alice@example.com",
+    "createdAt": "2026-02-06T10:30:00Z"
+  }
+}
+```
+
+#### Get Projects with Filtering
+```bash
+curl "http://localhost:3000/api/projects?status=active&page=1&limit=5"
+```
+
+**Response (200):**
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "name": "RefundRoute Dashboard",
+      "status": "active",
+      "createdAt": "2026-02-06T10:31:00Z",
+      "user": {
+        "id": 1,
+        "name": "Alice Johnson",
+        "email": "alice@example.com"
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 5,
+    "total": 12,
+    "totalPages": 3
+  }
+}
+```
+
+### HTTP Status Codes Used
+
+| Code | Meaning | Usage |
+|------|---------|-------|
+| 200 | OK | Successful GET, PUT, DELETE |
+| 201 | Created | Successful POST |
+| 400 | Bad Request | Invalid input or missing required fields |
+| 404 | Not Found | Resource doesn't exist |
+| 409 | Conflict | Duplicate data (e.g., email already exists) |
+| 500 | Internal Server Error | Unexpected error |
+
+### RESTful Naming Conventions
+
+✅ **Do:**
+- Use plural nouns: `/api/users`, `/api/projects`
+- Use lowercase: `/api/users` not `/api/Users`
+- Use hyphens for multi-word resources: `/api/user-profiles`
+- Keep it hierarchical: `/api/users/:id/projects`
+
+❌ **Don't:**
+- Use verbs: `/api/getUsers`, `/api/createProject`
+- Use special characters: `/api/users!`, `/api/users#list`
+- Mix singular/plural: `/api/user`, `/api/projects`
+
+### Pagination & Filtering
+
+All list endpoints support:
+- `?page=1` - Page number (default: 1)
+- `?limit=10` - Items per page (default: 10)
+- `?status=active` - Filter by status (projects only)
+
+### Error Handling
+
+All errors return consistent JSON format:
+```json
+{
+  "error": "Descriptive error message"
+}
+```
+
+### Why Consistency Matters
+
+**Predictability:** Developers can guess endpoint structure without reading docs  
+**Maintainability:** Easy to add new resources following the same pattern  
+**Integration:** External clients can follow standard REST conventions  
+**Self-Documenting:** Clear naming reduces need for extensive documentation
+
 ## Learn More
 
 - [Next.js Documentation](https://nextjs.org/docs)

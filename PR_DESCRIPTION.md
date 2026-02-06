@@ -1,166 +1,246 @@
-# Pull Request: Transaction & Query Optimisation
+# Pull Request: API Route Structure and Naming
 
-## 🎯 Assignment: Transaction & Query Optimisation with Prisma ORM
+## 🎯 Assignment: RESTful API Route Structure with Next.js
 
-This PR implements database transactions for atomic operations and query optimizations using indexes to improve performance and maintain data integrity.
+This PR implements a well-structured RESTful API with consistent naming conventions, proper HTTP methods, error handling, and pagination support.
 
 ## 📋 Changes Made
 
 ### New Files Added
-- ✅ `lib/transaction-demo.ts` - Transaction examples with rollback handling
+- ✅ `app/api/users/route.ts` - Users collection endpoint (GET, POST)
+- ✅ `app/api/users/[id]/route.ts` - Single user endpoint (GET, PUT, DELETE)
+- ✅ `app/api/projects/route.ts` - Projects collection endpoint (GET, POST)
+- ✅ `app/api/projects/[id]/route.ts` - Single project endpoint (GET, PUT, DELETE)
 
 ### Modified Files
-- 📝 `prisma/schema.prisma` - Added indexes for frequently queried fields
-- 📝 `refundroute/README.md` - Added transaction and optimization documentation
+- 📝 `refundroute/README.md` - Added comprehensive API documentation
 
 ## ✨ Features Implemented
 
-### Database Transactions
-- Atomic user and project creation
-- Automatic rollback on failure
-- Error handling with try-catch blocks
-- Rollback verification with intentional failures
-- Ensures data consistency across multiple operations
+### RESTful API Endpoints
 
-### Query Optimizations
-- **Select optimization** - Only fetch needed fields
-- **Pagination** - Using `skip` and `take`
-- **Batch operations** - `createMany` for bulk inserts
-- **Indexed queries** - Fast lookups on common filters
+**Users API:**
+- `GET /api/users` - List all users with pagination
+- `POST /api/users` - Create new user
+- `GET /api/users/:id` - Get user by ID with projects
+- `PUT /api/users/:id` - Update user
+- `DELETE /api/users/:id` - Delete user
 
-### Indexes Added
-```prisma
-User:
-  @@index([email])        // Email lookups
-  @@index([createdAt])    // Date sorting
+**Projects API:**
+- `GET /api/projects` - List all projects with filtering
+- `POST /api/projects` - Create new project
+- `GET /api/projects/:id` - Get project by ID
+- `PUT /api/projects/:id` - Update project
+- `DELETE /api/projects/:id` - Delete project
 
-Project:
-  @@index([userId])           // User's projects
-  @@index([status])           // Status filtering
-  @@index([userId, status])   // Combined queries
+### Naming Conventions
+
+✅ **Plural nouns:** `/api/users`, `/api/projects`  
+✅ **Lowercase:** Consistent casing across all routes  
+✅ **Resource-based:** No verbs in URLs  
+✅ **Hierarchical:** Clear parent-child relationships
+
+### HTTP Methods & Status Codes
+
+| Method | Purpose | Success Code | Error Codes |
+|--------|---------|--------------|-------------|
+| GET | Read data | 200 | 400, 404, 500 |
+| POST | Create data | 201 | 400, 404, 409, 500 |
+| PUT | Update data | 200 | 400, 404, 409, 500 |
+| DELETE | Remove data | 200 | 400, 404, 500 |
+
+### Pagination Support
+
+All list endpoints support:
+```
+?page=1&limit=10
 ```
 
-### Anti-Patterns Avoided
-- ❌ Over-fetching → ✅ Use `select` for specific fields
-- ❌ N+1 queries → ✅ Use `include` or nested selects
-- ❌ No pagination → ✅ Implement `skip`/`take`
-- ❌ Missing indexes → ✅ Index frequently queried fields
+Returns:
+```json
+{
+  "data": [...],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 25,
+    "totalPages": 3
+  }
+}
+```
+
+### Filtering Support
+
+Projects endpoint supports status filtering:
+```
+/api/projects?status=active
+```
+
+### Error Handling
+
+**Consistent error responses:**
+```json
+{
+  "error": "Descriptive error message"
+}
+```
+
+**Proper status codes:**
+- 400 - Invalid input
+- 404 - Resource not found
+- 409 - Duplicate data (unique constraint)
+- 500 - Server error
 
 ## 🧪 Testing Instructions
 
-### Test Transaction Success
+### Start Development Server
 ```bash
 cd refundroute
-# Run transaction demo
-npx ts-node lib/transaction-demo.ts
+npm run dev
 ```
 
-### Test Transaction Rollback
-```typescript
-// In transaction-demo.ts, uncomment:
-await createUserWithProjectFailure('Test', 'duplicate@example.com', 'Project');
-// Verify no partial data was saved
-```
+### Test Users API
 
-### Apply Index Migration
+**Get all users:**
 ```bash
-npx prisma migrate dev --name add_indexes_for_optimisation
+curl "http://localhost:3000/api/users?page=1&limit=10"
 ```
 
-### Monitor Query Performance
+**Create user:**
 ```bash
-DEBUG="prisma:query" npm run dev
-# Watch query execution times before/after indexes
+curl -X POST http://localhost:3000/api/users \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Test User","email":"test@example.com"}'
 ```
 
-### Verify Indexes in Database
+**Get user by ID:**
 ```bash
-npx prisma studio
-# Or use PostgreSQL:
-# SELECT * FROM pg_indexes WHERE tablename IN ('User', 'Project');
+curl http://localhost:3000/api/users/1
+```
+
+**Update user:**
+```bash
+curl -X PUT http://localhost:3000/api/users/1 \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Updated Name"}'
+```
+
+**Delete user:**
+```bash
+curl -X DELETE http://localhost:3000/api/users/1
+```
+
+### Test Projects API
+
+**Get projects with filter:**
+```bash
+curl "http://localhost:3000/api/projects?status=active&page=1&limit=5"
+```
+
+**Create project:**
+```bash
+curl -X POST http://localhost:3000/api/projects \
+  -H "Content-Type: application/json" \
+  -d '{"name":"New Project","userId":1,"status":"active"}'
+```
+
+### Test Error Cases
+
+**Invalid ID:**
+```bash
+curl http://localhost:3000/api/users/invalid
+# Returns 400 Bad Request
+```
+
+**Non-existent resource:**
+```bash
+curl http://localhost:3000/api/users/9999
+# Returns 404 Not Found
+```
+
+**Duplicate email:**
+```bash
+curl -X POST http://localhost:3000/api/users \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Test","email":"existing@example.com"}'
+# Returns 409 Conflict
 ```
 
 ## 📊 Impact
 
-### Performance Improvements
-- **Query Speed**: 94% faster for indexed status queries
-- **Before**: ~150ms (full table scan)
-- **After**: ~8ms (index scan)
-
-### Data Integrity
-- ✅ Atomic operations ensure consistency
-- ✅ Automatic rollback prevents partial writes
-- ✅ Transaction isolation protects concurrent operations
+### Developer Experience
+- ✅ Predictable endpoint structure
+- ✅ Consistent error responses
+- ✅ Self-documenting API
+- ✅ Easy to extend with new resources
 
 ### Code Quality
-- ✅ Reusable transaction functions
-- ✅ Proper error handling
-- ✅ Type-safe TypeScript implementation
-- ✅ Well-documented examples
+- ✅ Type-safe with TypeScript
+- ✅ Proper separation of concerns
+- ✅ DRY error handling patterns
+- ✅ Follows Next.js App Router conventions
+
+### Integration Benefits
+- ✅ Standard REST conventions
+- ✅ Clear documentation with examples
+- ✅ Pagination prevents data overload
+- ✅ Filtering reduces unnecessary data transfer
 
 ## 🎓 Assignment Requirements Met
 
-- [x] Transaction implementation with rollback
-- [x] Error handling and verification
-- [x] Indexes added to schema
-- [x] Migration generated and applied
-- [x] Query optimization examples
-- [x] Before/after performance comparison
-- [x] Anti-patterns documented
-- [x] Production monitoring plan
+- [x] RESTful API routes under `/api/`
+- [x] File-based routing with Next.js App Router
+- [x] All CRUD operations (GET, POST, PUT, DELETE)
+- [x] Proper HTTP status codes
+- [x] Pagination support
+- [x] Filtering support (projects by status)
+- [x] Error handling with meaningful messages
+- [x] Consistent naming conventions
 - [x] Comprehensive README documentation
+- [x] curl test examples
 
-## 🔍 Transaction Scenarios
+## 🎯 RESTful Best Practices
 
-**Use Case 1: Create User with Initial Project**
-```typescript
-// Both operations succeed or both fail
-await prisma.$transaction(async (tx) => {
-  const user = await tx.user.create({...});
-  const project = await tx.project.create({...});
-  return { user, project };
-});
-```
+**✅ Implemented:**
+- Plural resource names
+- Noun-based endpoints (not verbs)
+- HTTP methods define actions
+- Hierarchical URL structure
+- Consistent response format
+- Meaningful status codes
+- Pagination for collections
+- Query parameters for filtering
 
-**Use Case 2: Batch Project Creation**
-```typescript
-// Create multiple projects atomically
-await prisma.project.createMany({
-  data: projects,
-  skipDuplicates: true
-});
-```
+**❌ Avoided:**
+- Verbs in URLs (`/getUsers`, `/createProject`)
+- Inconsistent naming
+- Missing error handling
+- Unclear status codes
+- Unpaginated large responses
 
-## 📈 Performance Monitoring
+## 💡 Why Consistency Matters
 
-### What to Track in Production:
-1. **Query Latency** - Execution time per query
-2. **Slow Query Log** - Queries >100ms
-3. **Error Rates** - Failed transactions
-4. **Connection Pool** - Active connections
+**Predictability:**
+- Developers can infer endpoint structure
+- Reduces documentation burden
+- Faster integration for external clients
 
-### Tools:
-- AWS RDS Performance Insights
-- Azure Query Performance Insight
-- Prisma query event logs
-- APM tools (New Relic, DataDog)
+**Maintainability:**
+- Easy to add new resources
+- Clear patterns to follow
+- Less cognitive overhead
+
+**Integration:**
+- Standard REST clients work out-of-box
+- API consumers know what to expect
+- Reduces support requests
 
 ## 🚀 No Breaking Changes
 
 All changes are additive:
-- New transaction utility file
-- Schema additions (indexes only)
-- Documentation enhancements
+- New API routes only
+- Documentation additions
 - No existing functionality modified
-
-## 💡 Production Safety
-
-**Before deploying:**
-1. Test transactions in staging
-2. Verify index creation time on large tables
-3. Monitor query performance after deployment
-4. Set up alerts for slow queries
-5. Configure connection pool limits
 
 ## 🔗 GitHub PR Link
 
