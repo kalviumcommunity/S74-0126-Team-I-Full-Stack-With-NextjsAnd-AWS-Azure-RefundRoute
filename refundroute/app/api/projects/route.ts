@@ -1,6 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 import { sendSuccess, sendError, sendPaginatedSuccess } from '@/lib/responseHandler';
 import { ERROR_CODES } from '@/lib/errorCodes';
+import { createProjectSchema } from '@/lib/schemas/projectSchema';
+import { ZodError } from 'zod';
+import { handleValidationError } from '@/lib/validationHelpers';
 
 const prisma = new PrismaClient();
 
@@ -71,15 +74,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, userId, status = 'active' } = body;
-
-    if (!name || !userId) {
-      return sendError(
-        'Name and userId are required',
-        ERROR_CODES.MISSING_FIELDS,
-        400
-      );
-    }
+    
+    // Validate input with Zod
+    const validatedData = createProjectSchema.parse(body);
+    const { name, userId, status = 'active' } = validatedData;
 
     // Verify user exists
     const userExists = await prisma.user.findUnique({
@@ -120,8 +118,14 @@ export async function POST(request: Request) {
       'Project created successfully',
       201
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating project:', error);
+    
+    // Handle Zod validation errors
+    if (error instanceof ZodError) {
+      return handleValidationError(error);
+    }
+    
     return sendError(
       'Failed to create project',
       ERROR_CODES.CREATE_FAILED,

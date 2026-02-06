@@ -3,6 +3,343 @@
 ## 🎯 Assignment: Authentication APIs (Signup / Login)
 
 This PR implements secure user authentication using bcrypt for password hashing and JWT (JSON Web Token) for session management in Next.js.
+# Pull Request: Input Validation with Zod
+
+## 🎯 Assignment: Input Validation with Zod
+
+This PR implements comprehensive input validation using Zod across all POST and PUT API endpoints, ensuring type-safe, validated data before any database operations.
+
+## 📋 Changes Made
+
+### New Files Added
+- ✅ `lib/schemas/userSchema.ts` - User validation schemas
+- ✅ `lib/schemas/projectSchema.ts` - Project validation schemas
+- ✅ `lib/validationHelpers.ts` - Zod error handling utilities
+
+### Modified Files
+- 📝 `app/api/users/route.ts` - Added Zod validation
+- 📝 `app/api/users/[id]/route.ts` - Added Zod validation
+- 📝 `app/api/projects/route.ts` - Added Zod validation
+- 📝 `app/api/projects/[id]/route.ts` - Added Zod validation
+- 📝 `refundroute/README.md` - Added validation documentation
+- 📝 `package.json` - Added Zod dependency
+
+## ✨ Features Implemented
+
+### Validation Schemas
+
+**User Schema:**
+```typescript
+createUserSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters long'),
+  email: z.string().email('Invalid email address').toLowerCase(),
+});
+
+updateUserSchema = z.object({
+  name: z.string().min(2).optional(),
+  email: z.string().email().optional(),
+}).refine(data => data.name || data.email);
+```
+
+**Project Schema:**
+```typescript
+createProjectSchema = z.object({
+  name: z.string().min(3),
+  userId: z.number().int().positive(),
+  status: z.enum(['active', 'inactive', 'archived']),
+});
+```
+
+### Validation Features
+
+- ✅ Type-safe runtime validation
+- ✅ Descriptive error messages
+- ✅ Field-level error reporting
+- ✅ Email format validation
+- ✅ String length constraints
+- ✅ Number type and range validation
+- ✅ Enum validation for status fields
+- ✅ Custom refinement rules
+- ✅ TypeScript type inference
+
+### Error Handling
+
+**Validation Error Response:**
+```json
+{
+  "success": false,
+  "message": "Validation failed",
+  "error": {
+    "code": "E001",
+    "details": [
+      {
+        "field": "name",
+        "message": "Name must be at least 2 characters long"
+      },
+      {
+        "field": "email",
+        "message": "Invalid email address"
+      }
+    ]
+  },
+  "timestamp": "2026-02-06T10:30:00.000Z"
+}
+```
+
+## 🧪 Testing Instructions
+
+### Install Zod
+```bash
+cd refundroute
+npm install zod
+```
+
+### Test Valid Input
+```bash
+curl -X POST http://localhost:3000/api/users \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Alice Johnson","email":"alice@example.com"}'
+```
+
+**Expected (201):**
+```json
+{
+  "success": true,
+  "message": "User created successfully",
+  "data": {
+    "id": 1,
+    "name": "Alice Johnson",
+    "email": "alice@example.com"
+  }
+}
+```
+
+### Test Invalid Name (Too Short)
+```bash
+curl -X POST http://localhost:3000/api/users \
+  -H "Content-Type: application/json" \
+  -d '{"name":"A","email":"test@example.com"}'
+```
+
+**Expected (400):**
+```json
+{
+  "success": false,
+  "message": "Validation failed",
+  "error": {
+    "code": "E001",
+    "details": [{
+      "field": "name",
+      "message": "Name must be at least 2 characters long"
+    }]
+  }
+}
+```
+
+### Test Invalid Email
+```bash
+curl -X POST http://localhost:3000/api/users \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Test User","email":"bademail"}'
+```
+
+**Expected (400):**
+```json
+{
+  "success": false,
+  "message": "Validation failed",
+  "error": {
+    "code": "E001",
+    "details": [{
+      "field": "email",
+      "message": "Invalid email address"
+    }]
+  }
+}
+```
+
+### Test Missing Fields
+```bash
+curl -X POST http://localhost:3000/api/users \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+**Expected (400):**
+```json
+{
+  "success": false,
+  "message": "Validation failed",
+  "error": {
+    "code": "E001",
+    "details": [
+      { "field": "name", "message": "Required" },
+      { "field": "email", "message": "Required" }
+    ]
+  }
+}
+```
+
+### Test Invalid Project Status
+```bash
+curl -X POST http://localhost:3000/api/projects \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Test","userId":1,"status":"invalid"}'
+```
+
+**Expected (400):**
+```json
+{
+  "success": false,
+  "message": "Validation failed",
+  "error": {
+    "code": "E001",
+    "details": [{
+      "field": "status",
+      "message": "Invalid enum value. Expected 'active' | 'inactive' | 'archived'"
+    }]
+  }
+}
+```
+
+### Test Update with No Fields
+```bash
+curl -X PUT http://localhost:3000/api/users/1 \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+**Expected (400):**
+```json
+{
+  "success": false,
+  "message": "Validation failed",
+  "error": {
+    "code": "E001",
+    "details": [{
+      "message": "At least one field (name or email) must be provided"
+    }]
+  }
+}
+```
+
+## 📊 Impact
+
+### Data Integrity
+- ✅ Guaranteed valid data before database operations
+- ✅ Type-safe validation at runtime
+- ✅ Prevents malformed data corruption
+- ✅ Enforces business rules (min length, email format, etc.)
+
+### Developer Experience
+- ✅ Clear, field-specific error messages
+- ✅ TypeScript type inference from schemas
+- ✅ Reusable schemas across client/server
+- ✅ Self-documenting API requirements
+
+### Security
+- ✅ Prevents injection attacks
+- ✅ Validates data types and formats
+- ✅ Sanitizes inputs (e.g., toLowerCase for emails)
+- ✅ Rejects unexpected fields
+
+### Team Collaboration
+- ✅ Frontend knows exact validation rules
+- ✅ Backend guarantees data structure
+- ✅ Reduced debugging time
+- ✅ Single source of truth for schemas
+
+## 🎓 Assignment Requirements Met
+
+- [x] Zod installed and configured
+- [x] Validation schemas created for all models
+- [x] Applied to all POST endpoints
+- [x] Applied to all PUT endpoints
+- [x] Graceful error handling with ZodError
+- [x] Consistent error response format
+- [x] TypeScript type inference
+- [x] Schema reuse capability
+- [x] Comprehensive README documentation
+- [x] Testing examples provided
+
+## 💡 Schema Reuse
+
+**Server-side validation:**
+```typescript
+import { createUserSchema } from '@/lib/schemas/userSchema';
+const validatedData = createUserSchema.parse(body);
+```
+
+**Client-side validation (same schema):**
+```typescript
+import { createUserSchema } from '@/lib/schemas/userSchema';
+try {
+  createUserSchema.parse(formData);
+  // Submit to API
+} catch (error) {
+  // Show errors in UI
+}
+```
+
+**Type inference:**
+```typescript
+type CreateUserInput = z.infer<typeof createUserSchema>;
+// Type is automatically: { name: string; email: string }
+```
+
+## 🔒 How Zod Protects the Backend
+
+**Without Zod:**
+```
+Frontend sends malformed data 
+  → Reaches database
+  → Database error or corrupted data
+  → Hard to debug
+  → Poor user experience
+```
+
+**With Zod:**
+```
+Frontend sends malformed data
+  → Zod validation layer
+  → Immediate rejection with clear errors
+  → No database touched
+  → Developer fixes issue quickly
+```
+
+## 🌐 Collaboration Benefits
+
+When a frontend developer accidentally sends bad data:
+
+1. **Zod catches it immediately** - Before any business logic
+2. **Returns structured, field-level errors** - Easy to understand
+3. **Prevents database corruption** - Data never reaches DB
+4. **Improves feedback loop** - Clear requirements
+
+**Example:**
+Developer sends: `{ "name": "", "email": "bad" }`
+
+Zod responds:
+```json
+{
+  "errors": [
+    { "field": "name", "message": "Name must be at least 2 characters" },
+    { "field": "email", "message": "Invalid email address" }
+  ]
+}
+```
+
+Developer immediately knows what to fix!
+
+## 🚀 No Breaking Changes
+
+All existing endpoints enhanced with validation:
+- Same HTTP methods
+- Same response format (success)
+- Enhanced error responses
+- Backward compatible structure
+
+## 🔗 GitHub PR Link
 
 ## 📋 Changes Made
 

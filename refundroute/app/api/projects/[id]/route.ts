@@ -1,6 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 import { sendSuccess, sendError } from '@/lib/responseHandler';
 import { ERROR_CODES } from '@/lib/errorCodes';
+import { updateProjectSchema } from '@/lib/schemas/projectSchema';
+import { ZodError } from 'zod';
+import { handleValidationError } from '@/lib/validationHelpers';
 
 const prisma = new PrismaClient();
 
@@ -70,7 +73,6 @@ export async function PUT(
   try {
     const projectId = Number(params.id);
     const body = await request.json();
-    const { name, status } = body;
 
     if (isNaN(projectId)) {
       return sendError(
@@ -80,13 +82,9 @@ export async function PUT(
       );
     }
 
-    if (!name && !status) {
-      return sendError(
-        'At least one field (name or status) is required',
-        ERROR_CODES.MISSING_FIELDS,
-        400
-      );
-    }
+    // Validate input with Zod
+    const validatedData = updateProjectSchema.parse(body);
+    const { name, status } = validatedData;
 
     const project = await prisma.project.update({
       where: { id: projectId },
@@ -112,6 +110,11 @@ export async function PUT(
     return sendSuccess(project, 'Project updated successfully');
   } catch (error: any) {
     console.error('Error updating project:', error);
+
+    // Handle Zod validation errors
+    if (error instanceof ZodError) {
+      return handleValidationError(error);
+    }
 
     if (error.code === 'P2025') {
       return sendError(
